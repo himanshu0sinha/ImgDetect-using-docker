@@ -74,7 +74,36 @@ class QuoteBot(Bot):
 
 
 class ObjectDetectionBot(Bot):
-    pass
+    def handle_message(self, message):
+        logger.info(f'Incoming message: {message}')
+
+        if self.is_current_msg_photo():
+            photo_path = self.download_user_photo()
+            logger.info(f'Photo downloaded: {photo_path}')
+
+            # Send the photo to the YOLO5 service for object detection
+            try:
+                with open(photo_path, 'rb') as photo_file:
+                    files = {'file': photo_file}
+                    response = requests.post(f'{YOLO_URL}/predict', files=files)
+
+                    if response.status_code == 200:
+                        # Process the response from the YOLO5 service and send the detected objects to the user
+                        objects = response.json()
+                        if objects:
+                            self.send_text('Detected objects:')
+                            object_counts = Counter(objects)
+                            for obj, count in object_counts.items():
+                                self.send_text(f'{obj}: {count} instances')
+                        else:
+                            self.send_text('No objects detected.')
+                    else:
+                        self.send_text('Failed to perform object detection.')
+            except Exception as e:
+                logger.error(f'Error during object detection: {e}')
+                self.send_text('Error occurred during object detection.')
+        else:
+            self.send_text('Please send a photo for object detection.')
 
 
 if __name__ == '__main__':

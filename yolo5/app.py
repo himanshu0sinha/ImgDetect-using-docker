@@ -9,23 +9,12 @@ from loguru import logger
 import boto3
 import json
 
-# Load the AWS credentials from config.json
-with open('config.json') as config_file:
-    config = json.load(config_file)
-    access_key = config['access_key']
-    secret_key = config['secret_key']
-    bucket_name = config['bucket_name']
+s3_client = boto3.client("s3")
 
-# Configure the S3 client
-s3 = boto3.client(
-    's3',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key
-)
+with open('config.json') as f:
+    config = json.load(f)
 
-app = Flask(__name__, static_url_path='')
-UPLOAD_FOLDER = 'data/images'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+bucket_name = config['img_bucket']
 
 with open("data/coco128.yaml", "r") as stream:
     names = yaml.safe_load(stream)['names']
@@ -39,6 +28,12 @@ logger.info(f'supported files are: {ALLOWED_EXTENSIONS}')
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+app = Flask(__name__, static_url_path='')
+UPLOAD_FOLDER = 'data/images'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 
 @app.route('/predict', methods=['POST'])
 def upload_file_api():
@@ -72,17 +67,8 @@ def upload_file_api():
 
         # TODO upload client original img (p) and predicted img (pred_result_img) to S3 using boto3
         #  reference: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html
-        s3.upload_file(
-            Filename=str(p),
-            Bucket=bucket_name,
-            Key=f'{prediction_id}/{filename}'
-        )
-
-        s3.upload_file(
-            Filename=str(pred_result_img),
-            Bucket=bucket_name,
-            Key=f'{prediction_id}/{filename}'
-        )
+        s3_client.upload_file(str(p),bucket_name,str(p))
+        s3_client.upload_file(str(pred_result_img), bucket_name, str(pred_result_img))
 
         labels = []
         if pred_result_path.exists():
@@ -103,5 +89,5 @@ def upload_file_api():
     return f'Bad file format, allowed files are {ALLOWED_EXTENSIONS}', 400
 
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     app.run(host='0.0.0.0', port=8081, debug=True)
