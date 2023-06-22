@@ -3,6 +3,7 @@ from loguru import logger
 import os
 import requests
 from collections import Counter
+import threading
 
 YOLO_URL = 'http://localhost:8081'
 
@@ -89,12 +90,12 @@ class ObjectDetectionBot(Bot):
 
                     if response.status_code == 200:
                         # Process the response from the YOLO5 service and send the detected objects to the user
-                        objects = response.json()
-                        if objects:
+                        detections = response.json()
+                        if detections:
                             self.send_text('Detected objects:')
-                            object_counts = Counter(objects)
-                            for obj, count in object_counts.items():
-                                self.send_text(f'{obj}: {count} instances')
+                            element_counts = Counter([l['class'] for l in detections])
+                            for element, count in element_counts.items():
+                                self.send_text(f'{element}: {count} instances')
                         else:
                             self.send_text('No objects detected.')
                     else:
@@ -105,12 +106,28 @@ class ObjectDetectionBot(Bot):
         else:
             self.send_text('Please send a photo for object detection.')
 
-
 if __name__ == '__main__':
     # TODO - in the 'polyBot' dir, create a file called .telegramToken and store your bot token there.
     #  ADD THE .telegramToken FILE TO .gitignore, NEVER COMMIT IT!!!
-    with open('.telegramToken') as f:
-        _token = f.read()
 
-    my_bot = Bot(_token)
-    my_bot.start()
+        with open('.telegramToken') as f:
+            token = f.read().strip()
+
+        my_bot = Bot(token)
+        quote_bot = QuoteBot(token)
+        object_detection_bot = ObjectDetectionBot(token)
+
+        # Create separate threads for each bot and start them
+        my_bot_thread = threading.Thread(target=my_bot.start)
+        quote_bot_thread = threading.Thread(target=quote_bot.start)
+        object_detection_bot_thread = threading.Thread(target=object_detection_bot.start)
+
+        # Start the bot threads
+        my_bot_thread.start()
+        quote_bot_thread.start()
+        object_detection_bot_thread.start()
+
+        # Wait for the bot threads to finish
+        my_bot_thread.join()
+        quote_bot_thread.join()
+        object_detection_bot_thread.join()
