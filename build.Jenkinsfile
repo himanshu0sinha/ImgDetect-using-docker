@@ -43,7 +43,7 @@ pipeline {
 
                 sh '''
                 docker tag gayatri-yolo5:latest 854171615125.dkr.ecr.us-west-1.amazonaws.com/gayatri-yolo5:${BUILD_NUMBER}
-                docker push 854171615125.dkr.ecr.us-west-1.amazonaws.com/gayatri-yolo5:latest
+                docker push 854171615125.dkr.ecr.us-west-1.amazonaws.com/gayatri-yolo5:${BUILD_NUMBER}
 
                 '''
 
