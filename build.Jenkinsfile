@@ -1,11 +1,47 @@
 pipeline {
+
     agent any
 
+
+
     stages {
-        stage('Build') {
+
+        stage('Authentication') {
+
             steps {
-                sh 'echo building...'
+
+                sh '''
+
+                '''
+
             }
+
         }
+
+
+
+        stage('Build') {
+
+            steps {
+
+                sh 'echo building...'
+
+            }
+
+        }
+
+
+
+        stage('Push to ECR') {
+
+            steps {
+
+                sh 'echo pushing...'
+
+            }
+
+        }
+
     }
+
 }
