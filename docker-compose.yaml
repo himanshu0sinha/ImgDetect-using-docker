@@ -1,0 +1,42 @@
+version: '3'
+services:
+  polybot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - public
+    depends_on:
+      - yolo5
+      - mongo
+    environment:
+      - YOLO_URL=http://localhost:8081
+      - MONGO_URL=mongodb://mongo:27017
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    networks:
+      - public
+    ports:
+      - 8082:8082
+    depends_on:
+      - polybot
+
+  yolo5:
+    image: yolo
+    networks:
+      - private
+
+  mongo:
+    image: mongo
+    networks:
+      - private
+
+networks:
+  public:
+  private:
+
+volumes:
+  mongodb_data:
