@@ -32,7 +32,8 @@ spec:
 
        - name: yolo5-app
 
-         image: 854171615125.dkr.ecr.eu-north-1.amazonaws.com/gayatri-yolo5:${BUILD_NUMBER}
+         image: 854171615125.dkr.ecr.us-west-1.amazonaws.com/gayatri-yolo5:${BUILD_NUMBER}
+
 
          ports:
 
