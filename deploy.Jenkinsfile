@@ -7,7 +7,7 @@ pipeline {
         stage('Deploy') {
             steps {
 
-                //authenticating eks cluster
+                //authenticating eks clusters
                 sh 'aws eks --region us-east-2 update-kubeconfig --name k8s-batch1'
 
                 //going to k8s/yolo5.yaml,change image to $YOLO5_IMAGE_URL
