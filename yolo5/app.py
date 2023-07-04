@@ -3,6 +3,7 @@ from flask import Flask, render_template, flash, request, redirect
 import os
 from werkzeug.utils import secure_filename
 from detect import run
+from utils import ALLOWED_EXTENSIONS, allowed_file
 import uuid
 import yaml
 from loguru import logger
