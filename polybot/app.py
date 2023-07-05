@@ -2,14 +2,18 @@ import telebot
 from loguru import logger
 import os
 import requests
+from collections import Counter
+import threading
 
 YOLO_URL = 'http://localhost:8081'
 
 
 class Bot:
+
     def __init__(self, token):
         self.bot = telebot.TeleBot(token, threaded=False)
         self.bot.set_update_listener(self._bot_internal_handler)
+
         self.current_msg = None
 
     def _bot_internal_handler(self, messages):
@@ -22,13 +26,14 @@ class Bot:
         """Start polling msgs from users, this function never returns"""
         logger.info(f'{self.__class__.__name__} is up and listening to new messages....')
         logger.info(f'Telegram Bot information\n\n{self.bot.get_me()}')
+
         self.bot.infinity_polling()
 
-    def send_text(self, chat_id, text):
-        self.bot.send_message(chat_id, text)
+    def send_text(self, text):
+        self.bot.send_message(self.current_msg.chat.id, text)
 
-    def send_text_with_quote(self, chat_id, text, message_id):
-        self.bot.send_message(chat_id, text, reply_to_message_id=message_id)
+    def send_text_with_quote(self, text, message_id):
+        self.bot.send_message(self.current_msg.chat.id, text, reply_to_message_id=message_id)
 
     def is_current_msg_photo(self):
         return self.current_msg.content_type == 'photo'
@@ -40,7 +45,8 @@ class Bot:
         :return:
         """
         if not self.is_current_msg_photo():
-            raise RuntimeError(f'Message content of type \'photo\' expected, but got {self.current_msg.content_type}')
+            raise RuntimeError(
+                f'Message content of type \'photo\' expected, but got {self.current_msg.content_type}')
 
         file_info = self.bot.get_file(self.current_msg.photo[quality].file_id)
         data = self.bot.download_file(file_info.file_path)
@@ -57,56 +63,71 @@ class Bot:
     def handle_message(self, message):
         """Bot Main message handler"""
         logger.info(f'Incoming message: {message}')
-        self.send_text(message.chat.id, f'Your original message: {message.text}')
+        self.send_text(f'Your original message: {message.text}')
 
 
 class QuoteBot(Bot):
     def handle_message(self, message):
         logger.info(f'Incoming message: {message}')
+
         if message.text != 'Please don\'t quote me':
-            self.send_text_with_quote(message.chat.id, message.text, message_id=message.message_id)
+            self.send_text_with_quote(message.text, message_id=message.message_id)
 
 
 class ObjectDetectionBot(Bot):
     def handle_message(self, message):
         logger.info(f'Incoming message: {message}')
 
-        if message.content_type == 'photo':
-            file_path = self.download_user_photo()
-            detected_objects = self.detect_objects(file_path)
+        if self.is_current_msg_photo():
+            photo_path = self.download_user_photo()
+            logger.info(f'Photo downloaded: {photo_path}')
 
-            if detected_objects:
-                object_names = ", ".join(detected_objects)
-                response_text = f"Detected objects: {object_names}"
-                self.send_text_with_quote(message.chat.id, response_text, message_id=message.message_id)
-            else:
-                self.send_text_with_quote(message.chat.id, "No objects detected in the image.", message_id=message.message_id)
+            # Send the photo to the YOLO5 service for object detection
+            try:
+                with open(photo_path, 'rb') as photo_file:
+                    files = {'file': photo_file}
+                    response = requests.post(f'{YOLO_URL}/predict', files=files)
+
+                    if response.status_code == 200:
+                        # Process the response from the YOLO5 service and send the detected objects to the user
+                        detections = response.json()
+                        if detections:
+                            self.send_text('Detected objects:')
+                            element_counts = Counter([l['class'] for l in detections])
+                            for element, count in element_counts.items():
+                                self.send_text(f'{element}: {count} instances')
+                        else:
+                            self.send_text('No objects detected.')
+                    else:
+                        self.send_text('Failed to perform object detection.')
+            except Exception as e:
+                logger.error(f'Error during object detection: {e}')
+                self.send_text('Error occurred during object detection.')
         else:
-            self.send_text_with_quote(message.chat.id, message.text, message_id=message.message_id)
-
-    def detect_objects(self, image_file_path):
-        # Implement the logic to send the image to the yolo5 service and get the detected objects
-        # Use the requests library to communicate with the yolo5 service
-        # Parse the response and extract the detected objects
-
-        # For example:
-        yolo5_url = f"{YOLO_URL}/detect"
-        files = {"image": open(image_file_path, "rb")}
-        response = requests.post(yolo5_url, files=files)
-
-        if response.status_code == 200:
-            detected_objects = response.json()
-            return detected_objects
-        else:
-            # Handle error cases if necessary
-            return []
-
+            self.send_text('Please send a photo for object detection.')
 
 if __name__ == '__main__':
     # TODO - in the 'polyBot' dir, create a file called .telegramToken and store your bot token there.
     #  ADD THE .telegramToken FILE TO .gitignore, NEVER COMMIT IT!!!
-    with open('.telegramToken') as f:
-        _token = f.read()
 
-    my_bot = ObjectDetectionBot(_token)
-    my_bot.start()
+        with open('.telegramToken') as f:
+            token = f.read().strip()
+
+        my_bot = Bot(token)
+        quote_bot = QuoteBot(token)
+        object_detection_bot = ObjectDetectionBot(token)
+
+        # Create separate threads for each bot and start them
+        my_bot_thread = threading.Thread(target=my_bot.start)
+        quote_bot_thread = threading.Thread(target=quote_bot.start)
+        object_detection_bot_thread = threading.Thread(target=object_detection_bot.start)
+
+        # Start the bot threads
+        my_bot_thread.start()
+        quote_bot_thread.start()
+        object_detection_bot_thread.start()
+
+        # Wait for the bot threads to finish
+        my_bot_thread.join()
+        quote_bot_thread.join()
+        object_detection_bot_thread.join()
