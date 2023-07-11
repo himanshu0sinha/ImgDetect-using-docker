@@ -3,7 +3,7 @@ pipeline {
     agent any
     stages {
 
-        stage('Authentication and docker login') {
+        stage('Authentication And docker login') {
 
             steps {
 
