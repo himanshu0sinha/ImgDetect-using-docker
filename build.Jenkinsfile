@@ -1,9 +1,6 @@
 pipeline {
 
     agent any
-
-
-
     stages {
 
         stage('Authentication and docker login') {
@@ -27,7 +24,7 @@ pipeline {
 
                 sh '''
                 cd yolo5
-                docker build -t gayatri-yolo5 .
+                docker build -t himanshu .
                 '''
 
 
@@ -42,8 +39,8 @@ pipeline {
             steps {
 
                 sh '''
-                docker tag gayatri-yolo5:latest 854171615125.dkr.ecr.us-west-1.amazonaws.com/gayatri-yolo5:${BUILD_NUMBER}
-                docker push 854171615125.dkr.ecr.us-west-1.amazonaws.com/gayatri-yolo5:${BUILD_NUMBER}
+                docker tag himanshu:latest 854171615125.dkr.ecr.us-west-1.amazonaws.com/himanshu:latest
+                docker push 854171615125.dkr.ecr.us-west-1.amazonaws.com/himanshu:latest
 
                 '''
 
